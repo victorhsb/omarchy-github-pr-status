@@ -41,7 +41,27 @@ No additional daemon, token configuration, Python packages, or elevated privileg
 are required. The plugin uses `gh api` for read-only requests; it never posts,
 reviews, merges, or changes pull requests.
 
-## Install this checkout
+## Install
+
+Run inside your Omarchy session:
+
+```sh
+omarchy plugin add https://github.com/victorhsb/omarchy-github-pr-status --enable
+```
+
+The widget appears in the right bar section. Sign in with
+`gh auth login --hostname github.com` if you have not already done so.
+
+To update a Git-installed copy:
+
+```sh
+omarchy plugin update torugo.github-pr-status
+```
+
+Omarchy installs and updates from the repository's default branch. Release tags
+identify tested snapshots; the command above does not pin an installation to a tag.
+
+## Install a local development checkout
 
 Run from the checkout inside your Omarchy session:
 
@@ -56,8 +76,9 @@ checkout. Without `--enable`, the installer copies and discovers the plugin but
 does not change its enabled state. Files are copied, not symlinked, as required
 by Omarchy. It does not edit packaged Omarchy source.
 
-Once published to a Git repository, this repository's root manifest also supports
-the normal `omarchy plugin add <repository-url> --enable` installation flow.
+If you previously installed a development copy, remove it with
+`omarchy plugin remove torugo.github-pr-status` before using the Git installation
+command. Omarchy backs up non-Git plugin folders when removing them.
 
 ## Controls
 
@@ -107,6 +128,10 @@ comment bodies. Directory/file permissions are 700/600. No avatar downloads or
 notifications are performed.
 
 ## Development and verification
+
+GitHub Actions runs the Python tests on Python 3.10 and 3.14 for pushes and pull
+requests. The QML and desktop checks below run locally against installed Omarchy;
+they are not claimed as part of the hosted CI job.
 
 ```sh
 python3 -m unittest discover -s tests -v

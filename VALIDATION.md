@@ -2,6 +2,23 @@
 
 Validated on 2026-09-06 with Omarchy 4.0.2, Qt 6.11.2, Python 3.14, and GitHub CLI 2.100.0.
 
+## Stable release preparation
+
+- Public repository identity confirmed as `victorhsb/omarchy-github-pr-status`;
+  permanent plugin ID remains `torugo.github-pr-status`.
+- Manifest homepage and version 1.0.0, primary Git installation/update commands,
+  dependency requirements, MIT attribution, and fictional previews reviewed.
+- Re-ran all 22 Python tests, seven Qt Quick scenarios (nine results including
+  setup/cleanup), QML lint, and manifest validation successfully.
+- Replaced the local development installation with a fresh clone through
+  `omarchy plugin add` from the public repository. The previous non-Git copy was
+  backed up by Omarchy before removal.
+- Verified Git-installed disable/re-enable, summon/hide, up-to-date update,
+  removal, and fresh reinstall through Omarchy's standard commands.
+- Added hosted CI on Python 3.10 and 3.14 with read-only repository permissions
+  and pinned official action revisions. Hosted CI is separate from local QML
+  and desktop validation; the release is gated on its successful run.
+
 ## Automated checks
 
 - 22 Python tests cover scope, drafts, deduplication, pagination, check mappings,
