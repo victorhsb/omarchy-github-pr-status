@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "torugo.github-pr-status",
+  "name": "GitHub PR Status",
+  "version": "0.1.0",
+  "author": "torugo",
+  "license": "MIT",
+  "description": "Your open pull requests, checks, reviews, and discussion counts in the Omarchy bar.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "GitHub PR Status",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
