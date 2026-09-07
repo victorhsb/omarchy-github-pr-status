@@ -111,8 +111,34 @@ The helper resolves the active account, searches for its authored open PRs,
 batches detail requests in groups of 20, and follows search, check, and review
 pagination. Additional check pages remain pinned to the original head commit.
 Merged/closed PRs disappear on the next successful discovery/detail refresh.
-GitHub search has a 1,000-result ceiling: reaching its limit is reported as an
-incomplete list rather than silently claiming to show everything.
+The list is limited to 100 PRs, most recently updated first. Reaching a limit
+with more results available is reported as an incomplete list.
+
+Each refresh has a shared 60-second budget, including waiting for the cache lock
+and resolving the account. Every request uses at most 35 seconds or the remaining
+budget, whichever is shorter. A refresh stops requesting when its budget expires;
+bounded cleanup and JSON serialization can add a little time afterward.
+
+Fixed resource limits also apply:
+
+- Discovery follows at most ten search pages, even when results repeat.
+- Each PR allows five check pages and five review pages, including the initial
+  detail pages, and 500 entries of each kind. Duplicate and pending entries count
+  toward these limits; duplicates are still excluded from displayed totals.
+- Each GitHub CLI request allows 8 MiB of stdout and 64 KiB of stderr. Exceeding
+  either limit terminates the request and marks its results incomplete.
+- Titles and check names allow 512 characters; check statuses allow 64. Longer
+  display text ends in an ellipsis and is labelled incomplete. Oversized identity
+  fields are rejected: account/repository names allow 256 characters and
+  identifiers, pagination cursors, and URLs allow 1,024.
+- Cache and stdout snapshots each allow 2 MiB of encoded JSON, including metadata
+  and the final newline. Oldest PRs are omitted if needed, with an incomplete-list
+  warning. Oversized or invalid older caches are discarded before reuse.
+
+Capped details retain validated previous values and their timestamp, or show
+unknown values when none are available. Partial check results and partial inline
+comment sums are never presented as complete totals. Incomplete refreshes do not
+advance the last complete update time. These limits are not configurable.
 
 Network failures preserve the previous snapshot and timestamp. Failed detail
 requests keep old details with a stale label or show unknown values for new PRs.

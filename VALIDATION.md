@@ -1,8 +1,44 @@
 # Validation
 
-Validated on 2026-09-06 with Omarchy 4.0.2, Qt 6.11.2, Python 3.14, and GitHub CLI 2.100.0.
+Resource-limit fix validated on 2026-09-07 with Omarchy 4.0.2, Qt 6.11.2,
+and Python 3.14.7. GitHub responses in this verification use fictional fixtures;
+the earlier live verification is recorded separately below.
 
-## Stable release preparation
+## Resource-limit security fix
+
+- Implemented a shared 60-second monotonic deadline covering lock waiting,
+  account resolution, discovery, detail batches, and nested pagination. Requests
+  receive at most 35 seconds or the remaining refresh budget.
+- Bounded discovery to 100 PRs / ten pages, and checks/reviews to five pages and
+  500 entries each per PR, counting initial pages, duplicates, and pending reviews.
+- Bounded subprocess stdout/stderr to 8 MiB / 64 KiB and retained strings to
+  their documented limits. Real local child processes verify overflow and timeout
+  termination/reaping, concurrent pipe draining, and blocked-stdin handling.
+- Bounded cache reads before JSON parsing and validated cached field shapes,
+  string/collection sizes, timestamps, and check totals before reuse. Atomic writes
+  and 700/600 permissions remain covered.
+- Incremental JSON encoding enforces a 2 MiB budget including escaping, metadata,
+  and the trailing newline. Oversized snapshots omit oldest rows, mark the result
+  incomplete/stale, and preserve the previous last-complete-update timestamp.
+- An end-to-end helper test uses a local fictional `gh` executable: four PRs with
+  100 long Unicode check names each produce three retained PRs under the byte
+  limit. Both a fresh fetch and a cache hit emit valid bounded JSON without the
+  internal authentication fingerprint.
+- `python3 -m unittest discover -s tests -v`: all 47 tests passed, including the
+  original 22 regressions. Fake-clock tests verify no further requests after
+  deadline expiry during discovery, batches, or nested check/review pagination.
+- `omarchy plugin validate .` and `python3 tests/check_qml.py`: passed.
+- `python3 tests/check_ui.py`: all eight scenarios passed (ten results including
+  setup/cleanup). The new capped-result scenario checks incomplete/stale labels,
+  previous timestamps, unknown checks, and unavailable inline counts.
+- Regenerated and visually inspected both fictional dark/light previews; text,
+  cards, check bars, and footer remain readable and correctly positioned.
+
+This verification did not install the checkout, run a live account fetch, or
+publish a commit/comment. Hosted Python 3.10/3.14 CI remains separate from these
+local results.
+
+## Stable release preparation (2026-09-06)
 
 - Public repository identity confirmed as `victorhsb/omarchy-github-pr-status`;
   permanent plugin ID remains `torugo.github-pr-status`.
@@ -19,7 +55,7 @@ Validated on 2026-09-06 with Omarchy 4.0.2, Qt 6.11.2, Python 3.14, and GitHub C
   and pinned official action revisions. Hosted CI is separate from local QML
   and desktop validation; the release is gated on its successful run.
 
-## Automated checks
+## Original release checks (2026-09-06)
 
 - 22 Python tests cover scope, drafts, deduplication, pagination, check mappings,
   review decisions, separate comment totals, unavailable details, rate limits,
@@ -31,7 +67,7 @@ Validated on 2026-09-06 with Omarchy 4.0.2, Qt 6.11.2, Python 3.14, and GitHub C
   Lint suppresses dynamic QObject member warnings and the known missing
   `QProcess::ExitStatus` metadata in Quickshell's exported QML types.
 
-## Live verification
+## Live verification (2026-09-06)
 
 - Installed in the user-owned plugin directory and loaded by the existing shell.
 - Verified disable/re-enable and shell summon/hide; the plugin remains enabled.

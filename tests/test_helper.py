@@ -42,7 +42,7 @@ class ScriptedAPI:
         self.responses = list(responses)
         self.calls = []
 
-    def graphql(self, query, **variables):
+    def graphql(self, query, timeout=35, **variables):
         self.calls.append((query, variables))
         if not self.responses:
             raise AssertionError("Unexpected API request: " + query)
@@ -58,7 +58,7 @@ def search_page(items, cursor=None, total=None):
 
 def concurrent_refresh(path, calls):
     class API:
-        def graphql(self, query, **variables):
+        def graphql(self, query, timeout=35, **variables):
             with calls.get_lock():
                 calls.value += 1
             time.sleep(0.05)
@@ -178,17 +178,17 @@ class HelperTests(unittest.TestCase):
         self.assertGreater(result["retryAt"], time.time() + 890)
 
     def test_gh_uses_stdin_and_never_a_shell(self):
-        with patch.object(h.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, '{"data":{"viewer":{"login":"alice"}}}', "")) as run:
+        with patch.object(h, "bounded_process", return_value=subprocess.CompletedProcess([], 0, '{"data":{"viewer":{"login":"alice"}}}', "")) as run:
             h.GitHub().graphql("query($q:String!) { search(query:$q) { issueCount } }", q='$(touch /tmp/unsafe)')
             args, kwargs = run.call_args
             self.assertNotIn("shell", kwargs)
             self.assertEqual(args[0][-2:], ["--input", "-"])
             self.assertNotIn("touch", " ".join(args[0]))
-            self.assertEqual(json.loads(kwargs["input"])["variables"]["q"], '$(touch /tmp/unsafe)')
+            self.assertEqual(json.loads(args[1])["variables"]["q"], '$(touch /tmp/unsafe)')
 
     def test_cli_failure_classification_and_graphql_partial_errors(self):
         for stdout, stderr, kind in [('', 'gh auth login', 'auth'), ('', 'rate limit exceeded', 'rate_limit'), ('', 'connection refused', 'network'), ('{"data":{"nodes":[]},"errors":[{"message":"forbidden"}]}', '', 'api')]:
-            with patch.object(h.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, stdout, stderr)):
+            with patch.object(h, "bounded_process", return_value=subprocess.CompletedProcess([], 1, stdout, stderr)):
                 with self.assertRaises(h.FetchError) as raised:
                     h.GitHub().graphql("query {}")
                 self.assertEqual(raised.exception.kind, kind)

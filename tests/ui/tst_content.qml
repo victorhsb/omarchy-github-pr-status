@@ -131,6 +131,43 @@ Item {
             compare(opened.count, 0)
             verify(surface.visible)
         }
+        function visibleText(item, expected) {
+            if (item.visible && item.text !== undefined && item.text.indexOf(expected) >= 0) return true
+            for (let child of item.children) {
+                if (visibleText(child, expected)) return true
+            }
+            return false
+        }
+        function test_capped_results_show_unknown_and_stale_details() {
+            let data = example()
+            data.partial = true
+            data.stale = true
+            data.error = "Some PR details are unavailable. Review pagination limit reached."
+            data.prs = data.prs.slice(0, 2)
+            data.prs[0].error = "Review pagination limit reached; previous details retained."
+            data.prs[1].checks = null
+            data.prs[1].counts = null
+            data.prs[1].inline = null
+            data.prs[1].review = "Unknown"
+            data.prs[1].error = "Check pagination limit reached; checks are unavailable."
+            data.prs[1].fetchedAt = null
+            content.snapshot = data
+            wait(100)
+            let list = findChild(content, "prList")
+            verify(visibleText(content, "Incomplete ·"))
+            verify(visibleText(content, "Last complete update"))
+            verify(visibleText(list.itemAtIndex(0), "Stale / unavailable"))
+            verify(visibleText(list.itemAtIndex(0), "Last updated"))
+            content.move(0, 1)
+            wait(100)
+            let unknown = list.itemAtIndex(1)
+            compare(unknown.summary, "Unknown")
+            verify(visibleText(unknown, "Inline —"))
+            verify(visibleText(unknown, "Check pagination limit reached"))
+            content.move(1, 0)
+            compare(content.expandedId, data.prs[1].id)
+            compare(unknown.summary, "Unknown")
+        }
         function test_preview() {
             wait(250)
             let image = grabImage(surface)
