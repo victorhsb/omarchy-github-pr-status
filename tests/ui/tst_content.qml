@@ -106,11 +106,13 @@ Item {
             data.prs[0].counts.success = 3
             return data
         }
-        function test_merge_ready_accent_requires_fresh_passing_state() {
+        function test_merge_ready_badge_requires_fresh_passing_state() {
             content.snapshot = readyExample()
             wait(100)
             let list = findChild(content, "prList")
             verify(list.itemAtIndex(0).mergeReady)
+            compare(findChild(list.itemAtIndex(0), "prStatusText").text, "✓ Ready to merge")
+            verify(findChild(list.itemAtIndex(0), "prStatusText").font.bold)
             verify(!list.itemAtIndex(1).mergeReady)
             let blockers = [ { draft: true }, { error: "Offline" }, { mergeable: "UNKNOWN" },
                 { mergeStateStatus: "BLOCKED" }, { review: "Review required" }, { checks: [] , counts: { success: 0 } } ]
@@ -120,6 +122,7 @@ Item {
                 content.snapshot = data
                 wait(30)
                 verify(!list.itemAtIndex(0).mergeReady)
+                compare(findChild(list.itemAtIndex(0), "prStatusText").text, blocker.draft ? "Draft" : "Open")
             }
             for (let flag of ["stale", "partial"]) {
                 let data = readyExample()
@@ -127,13 +130,34 @@ Item {
                 content.snapshot = data
                 wait(30)
                 verify(!list.itemAtIndex(0).mergeReady)
+                compare(findChild(list.itemAtIndex(0), "prStatusText").text, "Open")
             }
-            for (let status of ["CANCELLED", "FAILURE", "IN_PROGRESS", "UNKNOWN"]) {
+            for (let status of ["FAILURE", "IN_PROGRESS", "UNKNOWN"]) {
                 let data = readyExample()
                 data.prs[0].checks[2] = { name: "Integration tests", status: status, bucket: "unknown" }
                 content.snapshot = data
                 wait(30)
                 verify(!list.itemAtIndex(0).mergeReady)
+                compare(findChild(list.itemAtIndex(0), "prStatusText").text, "Open")
+            }
+        }
+        function test_cancelled_check_allows_badge_only_with_clean_merge_state() {
+            let data = readyExample()
+            data.prs[0].checks[2] = { name: "Optional preview", status: "CANCELLED", bucket: "skipped" }
+            data.prs[0].counts.success--
+            data.prs[0].counts.skipped++
+            content.snapshot = data
+            wait(100)
+            let list = findChild(content, "prList")
+            verify(list.itemAtIndex(0).mergeReady)
+            compare(findChild(list.itemAtIndex(0), "prStatusText").text, "✓ Ready to merge")
+            for (let state of ["BLOCKED", "UNKNOWN"]) {
+                let blocked = JSON.parse(JSON.stringify(data))
+                blocked.prs[0].mergeStateStatus = state
+                content.snapshot = blocked
+                wait(30)
+                verify(!list.itemAtIndex(0).mergeReady)
+                compare(findChild(list.itemAtIndex(0), "prStatusText").text, "Open")
             }
         }
         function init() {

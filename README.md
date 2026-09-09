@@ -15,8 +15,10 @@ repositories the account can access. No repository configuration required.
   conversation comments. Inline counts submitted code-review comments and replies,
   including resolved/outdated discussions and dismissed reviews. Pending review
   comments and review summary text are excluded.
-- A subtle green card tint and border when fresh data confirms merge readiness
-  and passing CI. Running, failed, unknown, or cancelled checks suppress it;
+- A solid green “✓ Ready to merge” badge, plus a subtle card tint and border,
+  when fresh data confirms merge readiness
+  and passing CI. Cancelled checks are allowed when GitHub reports a clean,
+  mergeable PR. Running, failed, or unknown checks suppress it;
   skipped/neutral checks are allowed alongside at least one passing check.
 - A proportional check bar. Click its summary, or use Left/Right, to see the
   individual check names and original GitHub statuses.

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.1 — 2026-09-09
+
+- Replace the Open pill with a solid green “✓ Ready to merge” badge when fresh
+  data confirms readiness, retaining the subtle card tint and border.
+- Allow cancelled checks alongside passing CI when GitHub reports MERGEABLE and
+  CLEAN, matching its ready-to-merge state. Drafts, stale/partial data,
+  review/merge blockers, and running, failed, or unknown checks still suppress
+  the badge.
+- Add badge regression coverage and refresh the fictional dark/light previews.
+
+No new requirements. If the old badge persists after updating, run
+`omarchy restart shell` to reload cached QML components; this briefly reloads
+the bar and desktop overlays.
+
 ## 1.1.0 — 2026-09-09
 
 - Notify when a PR previously needing review becomes approved and ready to merge.

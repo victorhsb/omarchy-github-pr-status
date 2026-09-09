@@ -127,3 +127,22 @@ this version.
   unknown data, stale snapshots, and merge/review blockers suppress the accent.
 - QML lint, plugin validation, and all 12 UI checks pass; dark/light previews
   were visually inspected. Keyboard selection retains its existing border.
+
+## Explicit merge-ready badge (2026-09-09)
+
+- Ready PRs now replace the Open pill with a solid green, bold
+  “✓ Ready to merge” badge. Cancelled checks are allowed when GitHub reports
+  MERGEABLE/CLEAN; all other readiness guards remain in place.
+- QML lint, plugin validation, and all 13 UI checks pass. Regression assertions
+  verify the badge returns to Open or Draft for stale, partial, or blocked data.
+- Release v1.1.1 checks also pass all 58 Python tests.
+- Regenerated and visually inspected fictional dark/light previews; the badge
+  fits alongside repository metadata and remains legible in both themes.
+- Installed the checkout locally and verified all runtime files, manifest, and
+  previews match. Restarted the shell and inspected the running panel.
+- Initial live validation exposed a mismatch: cancellation was counted as
+  skipped but suppressed the badge despite GitHub reporting MERGEABLE/CLEAN.
+  Added regression coverage allowing cancellation only with a clean merge state.
+- Reinstalled and restarted the shell after that correction. Visually confirmed
+  the live candidate displays “✓ Ready to merge”; review-required rows still
+  display Open. No private PR metadata is included in this report.

@@ -19,7 +19,8 @@ Item {
         && !!pr.counts && pr.counts.success > 0
         && pr.counts.running === 0 && pr.counts.failed === 0 && pr.counts.unknown === 0
         && !!pr.checks && pr.checks.every(function(check) {
-            return check.bucket === "success" || check.status === "SKIPPED" || check.status === "NEUTRAL"
+            return check.bucket === "success" || check.status === "SKIPPED"
+                || check.status === "NEUTRAL" || check.status === "CANCELLED"
         })
     signal openRequested()
     signal expandRequested()
@@ -87,17 +88,23 @@ Item {
             }
             Rectangle {
                 id: badge
+                objectName: "prStatusBadge"
                 width: badgeText.implicitWidth + Style.space(14)
                 height: badgeText.implicitHeight + Style.space(4)
                 radius: height / 2
-                color: Util.alpha(root.pr.draft ? Color.muted : root.colors.success, 0.15)
+                color: root.mergeReady ? root.colors.success
+                    : Util.alpha(root.pr.draft ? Color.muted : root.colors.success, 0.15)
                 Text {
                     id: badgeText
+                    objectName: "prStatusText"
                     anchors.centerIn: parent
-                    text: root.pr.draft ? "Draft" : "Open"
-                    color: root.pr.draft ? root.muted : root.colors.success
+                    text: root.mergeReady ? "✓ Ready to merge" : root.pr.draft ? "Draft" : "Open"
+                    textFormat: Text.PlainText
+                    color: root.mergeReady ? Color.popups.background
+                        : root.pr.draft ? root.muted : root.colors.success
                     font.family: root.family
                     font.pixelSize: Style.font.bodySmall
+                    font.bold: root.mergeReady
                 }
             }
         }
