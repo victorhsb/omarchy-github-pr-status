@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.1.0 — 2026-09-09
+
+- Notify when a PR previously needing review becomes approved and ready to merge.
+  Pending review cycles survive restarts and wait for CI; shared cache state
+  prevents duplicate alerts across displays. Requires `notify-send` (libnotify).
+- Group stacked PRs under separate headings with indented cards and a connecting
+  guide. Order members bottom-to-top using GitHub's actual position/size labels,
+  and order groups by their latest visible PR update. Keep the authored/open-only
+  scope, including drafts; no `gh stack` extension or local checkout is needed.
+- Give merge-ready PRs with passing CI a subtle green tint and border. Stale data,
+  review/merge blockers, and running, failed, unknown, or cancelled checks suppress
+  the accent.
+- Expand regression coverage and refresh the fictional dark/light previews.
+
+If the old layout persists after updating, run `omarchy restart shell` to reload
+cached QML components; this briefly reloads the bar and desktop overlays.
+
+## 1.0.1 — 2026-09-07
+
+Security fix for externally influenceable pagination and memory growth during
+GitHub PR refreshes.
+
+- Enforce a shared 60-second refresh deadline, including cache lock waiting and
+  all API requests.
+- Cap discovery at 100 PRs and ten search pages; cap checks and reviews at five
+  pages and 500 entries each per PR.
+- Bound GitHub CLI output and retained strings; terminate timed-out or oversized
+  requests. Validate cached data before reuse and cap serialized snapshots at
+  2 MiB.
+- Mark capped results incomplete/stale, retain safe previous details or show
+  unknown values, and preserve the last complete update timestamp. Omit oldest
+  PRs when necessary to fit the snapshot budget.
+- Add regression coverage for deadlines, subprocess limits, cache validation,
+  and bounded JSON output.
+
 ## 1.0.0 — 2026-09-06
 
 First stable release of GitHub PR Status for Omarchy.
