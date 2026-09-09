@@ -109,6 +109,15 @@ Item {
             required property int index
             width: list.width - Style.space(12)
             pr: modelData
+            stale: !!root.snapshot.stale || !!root.snapshot.partial
+            stackStart: !!modelData.stack && (index === 0
+                || !root.snapshot.prs[index - 1].stack
+                || root.snapshot.prs[index - 1].repository !== modelData.repository
+                || root.snapshot.prs[index - 1].stack.number !== modelData.stack.number)
+            stackEnd: !!modelData.stack && (index === root.snapshot.prs.length - 1
+                || !root.snapshot.prs[index + 1].stack
+                || root.snapshot.prs[index + 1].repository !== modelData.repository
+                || root.snapshot.prs[index + 1].stack.number !== modelData.stack.number)
             selected: list.currentIndex === index
             expanded: root.expandedId === modelData.id
             onOpenRequested: { list.currentIndex = index; root.selectedId = modelData.id; root.openRequested(modelData.url) }

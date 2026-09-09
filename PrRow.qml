@@ -3,11 +3,24 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 
-Rectangle {
+Item {
     id: root
     required property var pr
+    property bool stackStart: false
+    property bool stackEnd: false
+    readonly property real indent: pr.stack ? Style.space(18) : 0
+    readonly property real headingHeight: stackStart ? Style.space(32) : 0
     property bool selected: false
     property bool expanded: false
+    property bool stale: false
+    readonly property bool mergeReady: !stale && !pr.error && !pr.draft
+        && (pr.review === "Approved" || pr.review === "No review decision")
+        && pr.mergeable === "MERGEABLE" && pr.mergeStateStatus === "CLEAN"
+        && !!pr.counts && pr.counts.success > 0
+        && pr.counts.running === 0 && pr.counts.failed === 0 && pr.counts.unknown === 0
+        && !!pr.checks && pr.checks.every(function(check) {
+            return check.bucket === "success" || check.status === "SKIPPED" || check.status === "NEUTRAL"
+        })
     signal openRequested()
     signal expandRequested()
     readonly property color foreground: Color.popups.text
@@ -18,23 +31,54 @@ Rectangle {
     readonly property int total: pr.checks ? pr.checks.length : 0
     readonly property string summary: !pr.counts ? "Unknown" : total === 0 ? "No checks" : ["running", "success", "skipped", "failed", "unknown"].filter(function(key) { return pr.counts[key] > 0 }).map(function(key) { return pr.counts[key] + " " + key }).join("  ·  ")
 
-    height: body.implicitHeight + Style.space(24)
-    radius: Style.space(10)
-    color: Util.alpha(Color.popups.text, selected ? 0.07 : 0.025)
-    border.width: 1
-    border.color: Util.alpha(selected ? Color.accent : Color.muted, selected ? 0.6 : 0.18)
+    height: body.implicitHeight + Style.space(24) + headingHeight
 
+    Text {
+        objectName: "stackHeading"
+        visible: root.stackStart
+        width: parent.width
+        text: root.pr.stack ? "Stack #" + root.pr.stack.number + " · " + root.pr.repository : ""
+        textFormat: Text.PlainText
+        elide: Text.ElideMiddle
+        color: Color.accent
+        font.family: root.family
+        font.pixelSize: Style.font.bodySmall
+        font.bold: true
+    }
+    Rectangle {
+        objectName: "stackRail"
+        visible: !!root.pr.stack
+        x: Style.space(4)
+        y: root.headingHeight
+        width: Style.space(2)
+        height: parent.height - y + (root.stackEnd ? 0 : Style.space(10))
+        color: Util.alpha(Color.accent, 0.4)
+    }
+    Rectangle {
+        objectName: "prCard"
+        x: root.indent
+        y: root.headingHeight
+        width: parent.width - x
+        height: parent.height - y
+        radius: Style.space(10)
+        color: root.mergeReady ? Util.alpha(root.colors.success, root.selected ? 0.09 : 0.045)
+            : Util.alpha(Color.popups.text, root.selected ? 0.07 : 0.025)
+        border.width: 1
+        border.color: root.selected ? Util.alpha(Color.accent, 0.6)
+            : Util.alpha(root.mergeReady ? root.colors.success : Color.muted, root.mergeReady ? 0.28 : 0.18)
+    }
     Column {
         id: body
-        x: Style.space(12)
-        y: Style.space(12)
-        width: parent.width - Style.space(24)
+        x: root.indent + Style.space(12)
+        y: root.headingHeight + Style.space(12)
+        width: parent.width - root.indent - Style.space(24)
         spacing: Style.space(8)
         Row {
             width: parent.width
             Text {
                 width: parent.width - badge.width - Style.space(8)
-                text: root.pr.repository + "  #" + root.pr.number
+                text: (root.pr.stack ? root.pr.stack.position + "/" + root.pr.stack.size + "  ·  " : "")
+                    + root.pr.repository + "  #" + root.pr.number
                 textFormat: Text.PlainText
                 elide: Text.ElideMiddle
                 color: root.muted

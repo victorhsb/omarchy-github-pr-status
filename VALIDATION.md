@@ -82,5 +82,48 @@ local results.
   uses the user's active Omarchy theme. No private PR data is included in previews.
 
 Browser opening is tested to the PR URL signal boundary; opening a real PR uses
-Qt's standard external-URL handler. Multi-account/Enterprise support, notifications,
-and GitHub write actions are intentionally outside this version.
+Qt's standard external-URL handler. Multi-account/Enterprise support and GitHub write actions are intentionally outside
+this version.
+
+## Ready-to-merge notifications (2026-09-09)
+
+- All 53 Python tests pass, including review cycles, delayed merge readiness,
+  restart persistence, account invalidation, failure recovery, blockers, markup
+  escaping, and bounded best-effort notification delivery.
+- Plugin validation, QML lint, and all 10 Qt Quick checks pass.
+- Review-cycle state shares the private locked cache used across monitors.
+- Backed up and installed the checkout; shell rescan succeeded and installed
+  runtime files match the checkout. A live GitHub refresh returned complete, fresh
+  data including mergeability fields. The desktop service accepted a setup
+  notification. A real review-to-ready transition remains pending live acceptance.
+
+## Stack grouping (2026-09-09)
+
+- All 58 Python tests and 11 Qt Quick checks pass; plugin validation and QML lint pass.
+- Regression coverage checks repository/stack grouping, bottom-to-top ordering,
+  original positions with hidden members, old caches, invalid metadata, stale
+  retention, removal from stacks, and keyboard selection across regrouping.
+- Dark/light fictional previews were regenerated and visually inspected.
+- Live GitHub schema and complete refresh verified; seven authored open PRs had
+  stack membership. No private PR metadata is included in the previews or report.
+
+## Visual stack subgroups and live reload correction (2026-09-09)
+
+- Stack headings now sit outside the PR cards; stack members are indented and
+  joined by a vertical guide. Standalone cards remain at the top level.
+- QML lint and all 11 UI checks pass, including heading placement, indentation,
+  group boundaries, and keyboard navigation. Both theme previews inspected.
+- Installed files and cached membership were correct, but rescan alone did not
+  make the updated panel visible. Restarting the Omarchy shell resolved this.
+- Visually verified the running panel after restart: standalone PR followed by
+  the real stack heading, indented cards, and actual position/size labels.
+- Earlier file-copy and rescan checks did not establish live visual acceptance;
+  this screenshot inspection does. Live screenshots remain outside the repo.
+
+## Subtle merge-ready accent (2026-09-09)
+
+- Added a faint green card fill and border for fresh, non-draft, mergeable PRs
+  with CLEAN merge state, satisfied reviews, and passing CI. Cancelled checks,
+  unknown data, stale snapshots, and merge/review blockers suppress the accent.
+- QML lint, plugin validation, and all 12 UI checks pass; dark/light previews
+  were visually inspected. Keyboard selection retains its existing border.

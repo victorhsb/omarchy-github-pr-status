@@ -5,6 +5,7 @@ import argparse
 import copy
 import fcntl
 import hashlib
+import html
 import json
 import math
 import os
@@ -39,7 +40,8 @@ CHECKS = """nodes { __typename
 } """ + PAGE
 REVIEWS = "nodes { id state comments { totalCount } } " + PAGE
 DETAIL = BASIC + """
-reviewDecision comments { totalCount }
+reviewDecision mergeable mergeStateStatus comments { totalCount }
+stackEntry { position stack { number size } }
 reviews(first:100) { """ + REVIEWS + """ }
 commits(last:1) { nodes { commit { oid statusCheckRollup {
  contexts(first:100) { """ + CHECKS + """ }
@@ -336,6 +338,28 @@ def check_pages(api, pr):
         connection = data["repository"]["object"]["statusCheckRollup"]["contexts"]
 
 
+def stack_info(entry):
+    if entry is None:
+        return None
+    stack = entry["stack"]
+    result = {"number": integer(stack["number"]), "size": integer(stack["size"]),
+              "position": integer(entry["position"])}
+    if not result["number"] or not 1 <= result["position"] <= result["size"]:
+        raise ValueError("Invalid stack position")
+    return result
+
+
+def group_stacks(rows):
+    """Newest group first; GitHub's bottom-to-top positions within each stack."""
+    groups = {}
+    for row in sorted(rows, key=lambda row: row["updatedAt"], reverse=True):
+        stack = row.get("stack")
+        key = (row["repository"], stack["number"]) if stack else (row["id"],)
+        groups.setdefault(key, []).append(row)
+    return [row for group in groups.values()
+            for row in sorted(group, key=lambda row: (row.get("stack") or {}).get("position", 0))]
+
+
 def normalize(api, pr):
     api = budget_api(api)
     row = basic_row(pr)
@@ -348,6 +372,9 @@ def normalize(api, pr):
         counts[check["bucket"]] += 1
     row.update(
         review={"APPROVED": "Approved", "CHANGES_REQUESTED": "Changes requested", "REVIEW_REQUIRED": "Review required", None: "No review decision"}.get(pr["reviewDecision"], "Unknown"),
+        stack=stack_info(pr.get("stackEntry")),
+        mergeable=reference(pr.get("mergeable", "UNKNOWN"), MAX_STATUS),
+        mergeStateStatus=reference(pr.get("mergeStateStatus", "UNKNOWN"), MAX_STATUS),
         discussion=integer(pr["comments"]["totalCount"]), inline=review_pages(api, pr),
         checks=checks, counts=counts, error="Display text shortened to the supported limit." if truncated else None, fetchedAt=time.time(),
     )
@@ -473,12 +500,22 @@ def validate_snapshot(value):
                   "review", "discussion", "inline", "checks", "counts", "error", "fetchedAt"}
     seen = set()
     for row in rows:
-        if not isinstance(row, dict) or set(row) != row_fields:
+        if not isinstance(row, dict) or not row_fields <= set(row) or set(row) - row_fields - {"mergeable", "mergeStateStatus", "awaitingReady", "stack"}:
             raise ValueError("Invalid PR")
         for key, maximum in (("id", MAX_REFERENCE), ("url", MAX_REFERENCE), ("title", MAX_TEXT),
                              ("repository", MAX_NAME), ("author", MAX_NAME), ("updatedAt", MAX_STATUS),
                              ("review", MAX_STATUS)):
             text(row[key], maximum)
+        for key in ("mergeable", "mergeStateStatus"):
+            if key in row:
+                text(row[key], MAX_STATUS)
+        if row.get("stack") is not None:
+            stack = row["stack"]
+            if not isinstance(stack, dict) or set(stack) != {"number", "size", "position"}:
+                raise ValueError("Invalid stack")
+            stack_info({"stack": stack, "position": stack["position"]})
+        if "awaitingReady" in row:
+            boolean(row["awaitingReady"])
         if not row["id"] or row["id"] in seen:
             raise ValueError("Invalid PR identifier")
         seen.add(row["id"])
@@ -560,6 +597,7 @@ def finalize(value, last_success=None):
             except LimitError:
                 high = middle - 1
         result["prs"] = rows[:low]
+    result["prs"] = group_stacks(result["prs"])
     return result
 
 
@@ -626,7 +664,46 @@ def auth_fingerprint():
     return digest.hexdigest()
 
 
-def run(api, cache, interval=60, force=False, now=time.time, monotonic=time.monotonic):
+def ready_notifications(result, previous, enabled):
+    """Persist review cycles in the locked cache, including while CI is pending."""
+    old = {row["id"]: row for row in previous.get("prs", [])}
+    notifications = []
+    for row in result["prs"]:
+        before = old.get(row["id"], {})
+        awaiting = before.get("awaitingReady", before.get("review") in {"Review required", "Changes requested"})
+        if not row.get("error"):
+            if row["review"] in {"Review required", "Changes requested"}:
+                awaiting = True
+            counts = row.get("counts")
+            ready = (not result.get("stale") and not result.get("partial")
+                     and row["review"] == "Approved" and not row["draft"]
+                     and row.get("mergeable") == "MERGEABLE"
+                     and row.get("mergeStateStatus") == "CLEAN"
+                     and counts is not None
+                     and not any(counts[key] for key in ("running", "failed", "unknown")))
+            if enabled and awaiting and ready:
+                notifications.append(row)
+                awaiting = False
+        if awaiting or "awaitingReady" in before:
+            row["awaitingReady"] = awaiting
+    return notifications
+
+
+def notify_ready(row, deadline):
+    """Best-effort local notification; never let a desktop failure break fetching."""
+    try:
+        subprocess.run(
+            ["notify-send", "--app-name=GitHub PR Status", "--icon=git-pull-request",
+             "--", "Pull request ready to merge",
+             html.escape(f'{row["repository"]} #{row["number"]}: {row["title"]}')],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=min(2, deadline.remaining()), check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired, FetchError):
+        pass
+
+
+def run(api, cache, interval=60, force=False, now=time.time, monotonic=time.monotonic, notify=False):
     deadline = Deadline(monotonic)
     api = BudgetAPI(api, deadline)
     try:
@@ -664,7 +741,15 @@ def run(api, cache, interval=60, force=False, now=time.time, monotonic=time.mono
             result["retryAt"] = timestamp + max(getattr(exc, "retry_after", 0), min(900, 60 * 2 ** min(result["failures"] - 1, 4)))
         result.update(attemptedAt=timestamp, authFingerprint=fingerprint)
         result = finalize(result, previous.get("lastSuccessAt"))
+        notifications = ready_notifications(result, previous, notify)
+        result = finalize(result, previous.get("lastSuccessAt"))
+        # Claim delivery before sending while holding the shared lock: no duplicates
+        # across monitors or restarts, even if the desktop notification service fails.
         cache.write(result)
+        retained = {row["id"] for row in result["prs"]}
+        for row in notifications:
+            if row["id"] in retained and not result.get("stale"):
+                notify_ready(row, deadline)
         return result
     finally:
         cache.close()
@@ -674,11 +759,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--interval", type=int, choices=(20, 60), default=60)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--notify", action="store_true", help="Notify when a previously review-blocked PR is ready to merge")
     args = parser.parse_args()
     os.umask(0o077)
     try:
         path = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "omarchy-github-pr-status"
-        result = run(GitHub(), Cache(path), args.interval, args.force)
+        result = run(GitHub(), Cache(path), args.interval, args.force, notify=args.notify)
     except (OSError, FetchError) as exc:
         result = {"schemaVersion": 1, "prs": [], "stale": True, "error": "Cannot use PR cache. Check cache directory permissions."}
     # The fingerprint is only for internal cache invalidation.

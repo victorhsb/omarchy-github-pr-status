@@ -59,6 +59,83 @@ Item {
                     row("39", "Explore a compact layout for vertical bars", true, "No review decision", [], 0, 0)
                 ] }
         }
+        function stackedExample() {
+            let data = example()
+            data.prs[0].stack = { number: 7, position: 1, size: 3 }
+            data.prs[1].stack = { number: 7, position: 3, size: 3 }
+            return data
+        }
+        function test_stack_labels_and_navigation() {
+            content.snapshot = stackedExample()
+            wait(100)
+            let list = findChild(content, "prList")
+            verify(list.itemAtIndex(0).stackStart)
+            verify(!list.itemAtIndex(0).stackEnd)
+            let firstCard = findChild(list.itemAtIndex(0), "prCard")
+            let firstHeading = findChild(list.itemAtIndex(0), "stackHeading")
+            verify(firstCard.x > 0)
+            verify(firstCard.y >= firstHeading.height)
+            verify(findChild(list.itemAtIndex(0), "stackRail").visible)
+            verify(visibleText(list.itemAtIndex(0), "Stack #7"))
+            verify(visibleText(list.itemAtIndex(0), "1/3"))
+            content.move(0, 1)
+            wait(100)
+            verify(!list.itemAtIndex(1).stackStart)
+            verify(list.itemAtIndex(1).stackEnd)
+            compare(findChild(list.itemAtIndex(1), "prCard").x, firstCard.x)
+            compare(findChild(list.itemAtIndex(1), "prCard").y, 0)
+            verify(visibleText(list.itemAtIndex(1), "3/3"))
+            content.move(1, 0)
+            compare(content.expandedId, "41")
+            content.activate()
+            compare(opened.signalArguments[0][0], content.snapshot.prs[1].url)
+            let updated = stackedExample()
+            updated.prs.unshift(updated.prs.pop())
+            content.snapshot = updated
+            wait(100)
+            compare(list.currentIndex, 2)
+            content.activate()
+            compare(opened.signalArguments[1][0], updated.prs[2].url)
+        }
+        function readyExample() {
+            let data = stackedExample()
+            data.prs[0].mergeable = "MERGEABLE"
+            data.prs[0].mergeStateStatus = "CLEAN"
+            data.prs[0].checks[2] = { name: "Integration tests", status: "SUCCESS", bucket: "success" }
+            data.prs[0].counts.running = 0
+            data.prs[0].counts.success = 3
+            return data
+        }
+        function test_merge_ready_accent_requires_fresh_passing_state() {
+            content.snapshot = readyExample()
+            wait(100)
+            let list = findChild(content, "prList")
+            verify(list.itemAtIndex(0).mergeReady)
+            verify(!list.itemAtIndex(1).mergeReady)
+            let blockers = [ { draft: true }, { error: "Offline" }, { mergeable: "UNKNOWN" },
+                { mergeStateStatus: "BLOCKED" }, { review: "Review required" }, { checks: [] , counts: { success: 0 } } ]
+            for (let blocker of blockers) {
+                let data = readyExample()
+                Object.assign(data.prs[0], blocker)
+                content.snapshot = data
+                wait(30)
+                verify(!list.itemAtIndex(0).mergeReady)
+            }
+            for (let flag of ["stale", "partial"]) {
+                let data = readyExample()
+                data[flag] = true
+                content.snapshot = data
+                wait(30)
+                verify(!list.itemAtIndex(0).mergeReady)
+            }
+            for (let status of ["CANCELLED", "FAILURE", "IN_PROGRESS", "UNKNOWN"]) {
+                let data = readyExample()
+                data.prs[0].checks[2] = { name: "Integration tests", status: status, bucket: "unknown" }
+                content.snapshot = data
+                wait(30)
+                verify(!list.itemAtIndex(0).mergeReady)
+            }
+        }
         function init() {
             opened.clear(); closed.clear(); refreshed.clear()
             content.expandedId = ""; content.selectedId = ""
@@ -169,12 +246,14 @@ Item {
             compare(unknown.summary, "Unknown")
         }
         function test_preview() {
+            content.snapshot = readyExample()
             wait(250)
             let image = grabImage(surface)
             verify(image.width > 0)
             image.save(Qt.resolvedUrl("../../preview.png").toString().replace("file://", ""))
         }
         function test_preview_light() {
+            content.snapshot = readyExample()
             Color.popups.background = "#f4f5f8"
             Color.popups.text = "#263044"
             Color.muted = "#768196"

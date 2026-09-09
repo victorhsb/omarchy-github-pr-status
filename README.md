@@ -9,12 +9,15 @@ repositories the account can access. No repository configuration required.
 ## What it shows
 
 - A PR icon, open-PR count, and running/failure/stale indicator in the bar.
-- A scrollable panel, most recently updated first, with repository, PR number,
+- A scrollable panel, grouped by stack and most recently updated group first, with repository, PR number,
   title, Open/Draft badge, and GitHub's review decision.
 - Separate **Discussion** and **Inline** comment counts. Discussion counts PR
   conversation comments. Inline counts submitted code-review comments and replies,
   including resolved/outdated discussions and dismissed reviews. Pending review
   comments and review summary text are excluded.
+- A subtle green card tint and border when fresh data confirms merge readiness
+  and passing CI. Running, failed, unknown, or cancelled checks suppress it;
+  skipped/neutral checks are allowed alongside at least one passing check.
 - A proportional check bar. Click its summary, or use Left/Right, to see the
   individual check names and original GitHub statuses.
 
@@ -30,6 +33,38 @@ No checks is distinct from success. Unknown statuses have a labelled gray segmen
 Cancellation stays visible as `CANCELLED` in the expanded details.
 Review decisions are Approved, Changes requested, Review required, or No review
 decision; they do not claim the PR is mergeable.
+
+## Stack grouping
+
+GitHub stacks appear together under a repository and stack-number heading. Within
+each stack, PRs run from bottom to top and show their actual position, such as
+`1/3` and `3/3`. Groups and standalone PRs are ordered by their latest visible PR
+update. Only your authored open PRs (including drafts) appear; positions are not
+renumbered when other stack members are merged, closed, or authored by someone else.
+
+Stack metadata comes from GitHub's read-only GraphQL API in the existing detail
+request. No `gh stack` extension or local repository checkout is needed. PRs without
+stack membership remain standalone. Failed detail refreshes retain cached stack
+information with the existing stale indicator.
+
+## Ready-to-merge notifications
+
+The widget sends a desktop notification when an authored PR previously seen as
+**Review required** or **Changes requested** becomes **Approved** and ready to merge.
+It waits for a non-draft PR, GitHub mergeability `MERGEABLE` and merge state `CLEAN`,
+and no running, failed, or unknown checks. See the
+[GitHub merge-state definitions](https://docs.github.com/en/graphql/reference/pulls#mergestatestatus).
+Stale or partial refreshes never trigger notifications.
+
+Pending review cycles persist in the private cache, so approval followed by delayed
+CI completion still triggers an alert. Each cycle is notified once across monitors
+and shell restarts; a new required review arms another alert. PRs already approved
+when first discovered are silent. Account changes reset this history. Notifications
+arrive on the usual refresh schedule and include the repository, number, and title.
+
+`notify-send` must be available on the shell PATH (provided by `libnotify`). Delivery
+is best effort, with no retry if the desktop notification service fails. The widget
+passes `--notify` to the helper; direct helper commands stay silent unless you add it.
 
 ## Requirements
 
@@ -68,6 +103,9 @@ Run from the checkout inside your Omarchy session:
 ```sh
 python3 install.py --enable
 ```
+If an update still shows the old layout after installation, run
+`omarchy restart shell` to reload cached QML components. This briefly reloads the
+bar and desktop overlays.
 
 This validates the plugin, copies its runtime files into
 `~/.config/omarchy/plugins/torugo.github-pr-status/`, discovers it, and enables it

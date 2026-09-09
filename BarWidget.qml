@@ -29,7 +29,7 @@ Ui.BarWidget {
     function refresh(force) {
         if (fetcher.running) return
         let path = decodeURIComponent(Qt.resolvedUrl("bin/github_pr_status.py").toString().replace(/^file:\/\//, ""))
-        let args = ["python3", path, "--interval", String(refreshInterval)]
+        let args = ["python3", path, "--notify", "--interval", String(refreshInterval)]
         if (force) args.push("--force")
         fetcher.command = args
         fetcher.running = true
