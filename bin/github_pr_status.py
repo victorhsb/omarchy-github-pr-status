@@ -30,6 +30,7 @@ MAX_STATUS = 64
 MAX_NAME = 256
 MAX_REFERENCE = 1024
 BUCKETS = ("running", "success", "skipped", "failed", "unknown")
+NOTIFICATION_ICON = Path(__file__).resolve().parent.parent / "assets/git-pull-request.svg"
 
 PAGE = "pageInfo { hasNextPage endCursor }"
 BASIC = """id number title url state isDraft updatedAt
@@ -693,7 +694,7 @@ def notify_ready(row, deadline):
     """Best-effort local notification; never let a desktop failure break fetching."""
     try:
         subprocess.run(
-            ["notify-send", "--app-name=GitHub PR Status", "--icon=git-pull-request",
+            ["notify-send", "--app-name=GitHub PR Status", f"--icon={NOTIFICATION_ICON}",
              "--", "Pull request ready to merge",
              html.escape(f'{row["repository"]} #{row["number"]}: {row["title"]}')],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

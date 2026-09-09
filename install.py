@@ -8,7 +8,8 @@ from pathlib import Path
 import subprocess
 
 PLUGIN_ID = "torugo.github-pr-status"
-FILES = ("BarWidget.qml", "Panel.qml", "PrContent.qml", "PrRow.qml", "bin/github_pr_status.py", "README.md", "LICENSE")
+FILES = ("BarWidget.qml", "Panel.qml", "PrContent.qml", "PrRow.qml", "bin/github_pr_status.py",
+         "assets/git-pull-request.svg", "README.md", "LICENSE")
 
 
 def main():

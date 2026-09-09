@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2 — 2026-09-09
+
+- Fix missing-icon placeholders in ready-to-merge notifications by bundling a
+  green pull-request SVG and referencing its absolute path.
+- Include the icon in local installations and add regression coverage for
+  notification delivery from copied installations, including paths with spaces.
+
+No new requirements or special upgrade steps. The bundled icon is used by new
+notifications after updating.
+
 ## 1.1.1 — 2026-09-09
 
 - Replace the Open pill with a solid green “✓ Ready to merge” badge when fresh

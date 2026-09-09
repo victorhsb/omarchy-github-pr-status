@@ -1,5 +1,19 @@
 # Validation
 
+## Bundled notification icon (2026-09-09)
+
+- Notifications use an absolute path to a bundled SVG, avoiding unavailable
+  desktop theme icons. The installer includes the asset.
+- All 59 Python tests pass, including notification argv and icon resolution
+  from a copied installation in a path containing spaces.
+- Plugin validation, QML lint, and all 13 Qt Quick checks pass.
+- Backed up and updated the local installation; runtime files match the checkout.
+- Sent a fictional notification through the installed helper and visually
+  confirmed the green pull-request icon renders on both displays. No shell
+  restart was needed. This check did not fetch or change GitHub data.
+- The user also confirmed the installed icon works. Release v1.1.2 includes
+  this fix; hosted CI is verified separately after pushing the release commit.
+
 Resource-limit fix validated on 2026-09-07 with Omarchy 4.0.2, Qt 6.11.2,
 and Python 3.14.7. GitHub responses in this verification use fictional fixtures;
 the earlier live verification is recorded separately below.

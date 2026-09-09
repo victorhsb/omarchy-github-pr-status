@@ -1,4 +1,6 @@
 import copy
+import importlib.util
+from pathlib import Path
 import subprocess
 import unittest
 import test_helper
@@ -78,8 +80,30 @@ class NotificationTests(unittest.TestCase):
             args, kwargs = run.call_args
             self.assertEqual(args[0][-1], 'example/project #1: &lt;b&gt;$(touch /tmp/no)&lt;/b&gt;')
             self.assertIn("--", args[0])
+            icon = Path(next(arg.removeprefix("--icon=") for arg in args[0] if arg.startswith("--icon=")))
+            self.assertTrue(icon.is_absolute())
+            self.assertTrue(icon.is_file())
             self.assertNotIn("shell", kwargs)
             self.assertLessEqual(kwargs["timeout"], 2)
         for failure in (FileNotFoundError(), subprocess.TimeoutExpired("notify-send", 2)):
             with patch.object(h.subprocess, "run", side_effect=failure):
                 h.notify_ready(row, h.Deadline())
+
+    def test_installed_helper_resolves_bundled_icon_from_another_directory(self):
+        import runpy
+        import shutil
+
+        source = Path(h.__file__).resolve().parent.parent
+        target = self.path.parent / "installed plugin"
+        for name in runpy.run_path(str(source / "install.py"))["FILES"]:
+            destination = target / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source / name, destination)
+        spec = importlib.util.spec_from_file_location("installed_helper", target / "bin/github_pr_status.py")
+        installed = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installed)
+        with patch.object(installed.subprocess, "run") as run:
+            installed.notify_ready(dict(repository="example/project", number=1, title="Test"), installed.Deadline())
+        icon = target / "assets/git-pull-request.svg"
+        self.assertIn(f"--icon={icon}", run.call_args.args[0])
+        self.assertEqual(icon.read_bytes(), (source / "assets/git-pull-request.svg").read_bytes())
