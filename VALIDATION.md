@@ -1,5 +1,53 @@
 # Validation
 
+## Release 1.2.0 (2026-09-10)
+
+- Release includes PR copying with toast feedback and superseded CI-attempt
+  handling. Manifest and changelog are included in the release commit.
+- Python suite (62 tests), plugin validation, QML lint, all 16 Qt Quick results,
+  and the isolated clipboard process harness pass. Dark/light previews were
+  regenerated and visually inspected.
+- The same runtime QML and helper were installed and verified live before the
+  version bump, including both clipboard formats and toast messages (see below).
+- Hosted Python 3.10/3.14 CI and the published tag are verified after pushing;
+  those external results are reported with the release rather than assumed here.
+
+## Copy PR shortcuts and toast (2026-09-10)
+
+- C copies the selected PR URL; Shift+C copies `owner/repo#number`. Both
+  preserve panel selection and show a small, fading confirmation toast.
+- All 62 Python tests, plugin validation, and QML lint pass. All 16 Qt Quick
+  results pass, including modifier handling, copy formats, busy suppression,
+  selection after refresh, empty lists, failure/retry, and toast dismissal.
+- An isolated offscreen Quickshell harness exercises the production panel and
+  real Process with a fake `wl-copy`: exact argv, successful copies, nonzero
+  exit, retry, and missing-executable failure all pass. It never touches the
+  desktop clipboard. Sandbox IPC and offscreen platform warnings are expected.
+- Regenerated and inspected dark/light previews, including both toast messages.
+- Installed locally after backing up the previous copy under
+  `~/.local/state/omarchy/plugin-backups/github-pr-status-20260910-013727`.
+  All installed runtime files and previews match the checkout (manifest 1.1.2).
+- Restarted the Omarchy shell to load the QML, then visually confirmed the
+  running panel's shortcuts and both toast messages. Live C and Shift+C checks
+  produced the matching PR URL and compact reference, with no trailing newline.
+  Private PR metadata and desktop captures were not retained in the repository.
+
+## Superseded CI attempts (2026-09-09)
+
+- Keep the highest check-run database ID per app, workflow, and full job name
+  across all fetched pages. Without workflow metadata, scope retries to a suite;
+  without ordering metadata, preserve separate runs conservatively.
+- All 62 Python tests pass, including retries in either page order, replacement
+  successes/failures/queued/skipped results, separate workflows/apps, and full
+  snapshot replacement. Plugin validation, QML lint, and 13 Qt Quick checks pass.
+- Read-only live validation covered seven authored PRs: at least 128 superseded
+  attempts were removed and stale failures cleared from three PRs. No private
+  PR metadata was saved in the repository.
+- Backed up and replaced the installed Python helper; its bytes match the
+  checkout. A forced installed-helper refresh returned seven PRs with no error,
+  stale flag, or partial flag. Running-panel visual acceptance remains unverified;
+  no QML files changed and no shell restart was performed.
+
 ## Bundled notification icon (2026-09-09)
 
 - Notifications use an absolute path to a bundled SVG, avoiding unavailable

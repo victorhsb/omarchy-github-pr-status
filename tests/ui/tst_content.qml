@@ -14,12 +14,13 @@ Item {
         color: Color.popups.background
         Ui.PanelKeyCatcher {
             id: keys
+            Keys.forwardTo: [content]
             anchors.fill: parent
             anchors.margins: 24
             onMoveRequested: function(dx, dy) { content.move(dx, dy) }
             onActivateRequested: content.activate()
             onTabRequested: function(direction) { content.move(0, direction) }
-            onTextKey: function(text) { if (text === "r") content.refreshRequested() }
+            onTextKey: function(text) { if (text.toLowerCase() === "r") content.refreshRequested() }
             Plugin.PrContent {
                 id: content
                 anchors.fill: parent
@@ -30,6 +31,7 @@ Item {
     SignalSpy { id: opened; target: content; signalName: "openRequested" }
     SignalSpy { id: closed; target: keys; signalName: "closeRequested" }
     SignalSpy { id: refreshed; target: content; signalName: "refreshRequested" }
+    SignalSpy { id: copied; target: content; signalName: "copyRequested" }
 
     TestCase {
         name: "PrContent"
@@ -161,7 +163,8 @@ Item {
             }
         }
         function init() {
-            opened.clear(); closed.clear(); refreshed.clear()
+            opened.clear(); closed.clear(); refreshed.clear(); copied.clear()
+            content.copyBusy = false; content.copyFeedback = ""
             content.expandedId = ""; content.selectedId = ""
             content.snapshot = example()
             keys.forceActiveFocus()
@@ -182,6 +185,60 @@ Item {
             content.move(0, -1)
             content.activate()
             compare(opened.signalArguments[2][0], "https://github.com/example/omarchy-tools/pull/39")
+        }
+        function test_copy_shortcuts_and_feedback() {
+            keyClick(Qt.Key_C, Qt.ControlModifier)
+            keyClick(Qt.Key_C, Qt.AltModifier)
+            keyClick(Qt.Key_C, Qt.MetaModifier)
+            compare(copied.count, 0)
+            keyClick(Qt.Key_C)
+            compare(copied.count, 1)
+            compare(copied.signalArguments[0][0], "https://github.com/example/omarchy-tools/pull/42")
+            compare(copied.signalArguments[0][1], false)
+            compare(content.copyFeedback, "")
+            verify(content.copyBusy)
+            keyClick(Qt.Key_C, Qt.ShiftModifier)
+            compare(copied.count, 1)
+            content.copyFinished(true, false)
+            compare(content.copyFeedback, "URL copied")
+            tryCompare(findChild(content, "copyToast"), "opacity", 1)
+            verify(visibleText(content, "URL copied"))
+            keyClick(Qt.Key_Down)
+            keyClick(Qt.Key_C, Qt.ShiftModifier)
+            compare(copied.signalArguments[1][0], "example/omarchy-tools#41")
+            compare(copied.signalArguments[1][1], true)
+            content.copyFinished(true, true)
+            compare(content.copyFeedback, "Reference copied")
+            compare(findChild(content, "prList").currentIndex, 1)
+            compare(opened.count, 0)
+            compare(closed.count, 0)
+            tryCompare(content, "copyFeedback", "", 3000)
+            tryCompare(findChild(content, "copyToast"), "visible", false)
+        }
+        function test_copy_after_refresh_and_failure() {
+            keyClick(Qt.Key_Down)
+            let updated = example()
+            updated.prs.unshift(updated.prs.pop())
+            content.snapshot = updated
+            wait(100)
+            keyClick(Qt.Key_C)
+            compare(copied.signalArguments[0][0], "https://github.com/example/omarchy-tools/pull/41")
+            content.copyFinished(false, false)
+            compare(content.copyFeedback, "Could not copy")
+            verify(!content.copyBusy)
+            keyClick(Qt.Key_C)
+            compare(copied.count, 2)
+            content.copyFinished(true, false)
+            compare(content.copyFeedback, "URL copied")
+        }
+        function test_copy_empty_list() {
+            content.snapshot = { prs: [] }
+            wait(100)
+            keyClick(Qt.Key_C)
+            keyClick(Qt.Key_C, Qt.ShiftModifier)
+            compare(copied.count, 0)
+            verify(!content.copyBusy)
+            compare(content.copyFeedback, "")
         }
         function test_refresh_preserves_selection() {
             content.move(0, 1)
@@ -271,6 +328,8 @@ Item {
         }
         function test_preview() {
             content.snapshot = readyExample()
+            content.copySelected(false)
+            content.copyFinished(true, false)
             wait(250)
             let image = grabImage(surface)
             verify(image.width > 0)
@@ -278,12 +337,14 @@ Item {
         }
         function test_preview_light() {
             content.snapshot = readyExample()
+            content.copySelected(true)
+            content.copyFinished(true, true)
             Color.popups.background = "#f4f5f8"
             Color.popups.text = "#263044"
             Color.muted = "#768196"
             Color.accent = "#4d689e"
             Color.urgent = "#b1394b"
-            wait(100)
+            wait(250)
             let image = grabImage(surface)
             image.save(Qt.resolvedUrl("../../preview-light.png").toString().replace("file://", ""))
             Color.popups.background = "#171b24"

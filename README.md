@@ -32,6 +32,10 @@ repositories the account can access. No repository configuration required.
 | Unknown | Unrecognized or unavailable status |
 
 No checks is distinct from success. Unknown statuses have a labelled gray segment.
+Repeated attempts of the same workflow job show only the newest check run, so
+superseded failures do not block merge readiness. Jobs from different workflows
+or apps remain separate; checks without workflow metadata are grouped only
+within their own check suite.
 Cancellation stays visible as `CANCELLED` in the expanded details.
 Review decisions are Approved, Changes requested, Review required, or No review
 decision; they do not claim the PR is mergeable.
@@ -73,10 +77,20 @@ passes `--notify` to the helper; direct helper commands stay silent unless you a
 - Omarchy with the Quattro plugin runtime (tested with 4.0.2).
 - Python 3.10+ (standard library only) and GitHub CLI `gh` on the shell's PATH.
 - A working `gh auth login --hostname github.com` session.
+- `wl-copy` (from `wl-clipboard`) for copying PR references.
 
 No additional daemon, token configuration, Python packages, or elevated privileges
 are required. The plugin uses `gh api` for read-only requests; it never posts,
 reviews, merges, or changes pull requests.
+
+## Copying a PR
+
+With a PR selected in the panel, press **C** to copy its full URL, or
+**Shift+C** to copy a compact `owner/repo#123` reference. The full URL is handy
+for pasting into an agent conversation to ask for a fix or review.
+Copying keeps the panel open and briefly confirms success in a small toast;
+clipboard failures show a “Could not copy” toast. Shortcuts use the keyboard-selected
+row, not the hovered row, and copy plain text without a trailing newline.
 
 ## Install
 

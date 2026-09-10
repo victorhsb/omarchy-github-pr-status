@@ -36,7 +36,9 @@ PAGE = "pageInfo { hasNextPage endCursor }"
 BASIC = """id number title url state isDraft updatedAt
 author { login } repository { nameWithOwner }"""
 CHECKS = """nodes { __typename
- ... on CheckRun { id name status conclusion }
+ ... on CheckRun { id name status conclusion databaseId
+   checkSuite { id app { id } workflowRun { workflow { id } } }
+ }
  ... on StatusContext { id context state }
 } """ + PAGE
 REVIEWS = "nodes { id state comments { totalCount } } " + PAGE
@@ -299,6 +301,22 @@ def review_pages(api, pr):
         connection = data["node"]["reviews"]
 
 
+def check_identity(check):
+    """Group attempts by workflow and full job name, never by display text."""
+    identifier = reference(check["id"])
+    suite = check.get("checkSuite") or {}
+    workflow = (suite.get("workflowRun") or {}).get("workflow") or {}
+    run_id = check.get("databaseId")
+    if check.get("__typename") != "CheckRun" or not isinstance(run_id, int) or run_id <= 0:
+        return identifier, 0
+    # Separate workflows/apps can legitimately use the same job name. Without
+    # workflow metadata only coalesce retries within the same check suite.
+    scope = workflow.get("id") or suite.get("id")
+    if not scope:
+        return identifier, 0
+    return ("CheckRun", (suite.get("app") or {}).get("id"), scope, check["name"]), run_id
+
+
 def check_pages(api, pr):
     api = budget_api(api)
     commits = pr["commits"]["nodes"]
@@ -310,6 +328,7 @@ def check_pages(api, pr):
     if rollup is None:
         return []
     connection, found, cursor = rollup["contexts"], {}, None
+    latest = {}
     pages, entries = 0, 0
     while True:
         pages += 1
@@ -319,7 +338,10 @@ def check_pages(api, pr):
         entries += len(nodes)
         for check in nodes:
             if check:
-                identifier = reference(check["id"])
+                identifier, run_id = check_identity(check)
+                if run_id < latest.get(identifier, -1):
+                    continue
+                latest[identifier] = run_id
                 name = check.get("name", check.get("context", "Check"))
                 status = check.get("conclusion") or check.get("status") or check.get("state") or "UNKNOWN"
                 found[identifier] = {

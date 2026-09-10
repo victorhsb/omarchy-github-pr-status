@@ -10,11 +10,42 @@ Item {
     property bool busy: false
     property string expandedId: ""
     property string selectedId: ""
+    property bool copyBusy: false
+    property string copyFeedback: ""
     readonly property color foreground: Color.popups.text
     readonly property color muted: Util.alpha(Color.popups.text, 0.68)
     readonly property string family: Style.font.family
     signal openRequested(string url)
     signal refreshRequested()
+    signal copyRequested(string text, bool compact)
+
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_C && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+            if (!event.isAutoRepeat) copySelected(!!(event.modifiers & Qt.ShiftModifier))
+            event.accepted = true
+        }
+    }
+    function copySelected(compact) {
+        if (copyBusy || !snapshot.prs.length) return
+        let pr = snapshot.prs[Math.max(0, list.currentIndex)]
+        if (!pr) return
+        let text = compact ? pr.repository + "#" + pr.number : pr.url
+        copyFeedbackTimer.stop()
+        copyFeedback = ""
+        copyBusy = true
+        copyRequested(text, compact)
+    }
+    function copyFinished(success, compact) {
+        if (!copyBusy) return
+        copyBusy = false
+        copyFeedback = success ? (compact ? "Reference copied" : "URL copied") : "Could not copy"
+        copyFeedbackTimer.restart()
+    }
+    Timer {
+        id: copyFeedbackTimer
+        interval: 2500
+        onTriggered: root.copyFeedback = ""
+    }
 
     function move(dx, dy) {
         if (!list.count) return
@@ -155,12 +186,45 @@ Item {
         }
         Text {
             width: parent.width
-            text: "↑↓ navigate   ·   ←→ checks   ·   enter opens   ·   r refresh   ·   esc closes"
+            text: "↑↓ navigate   ·   ←→ checks   ·   enter opens\nc copy URL   ·   shift+c copy reference   ·   r refresh   ·   esc closes"
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
             font.family: root.family
             font.pixelSize: Style.font.bodySmall
             color: root.muted
+        }
+    }
+    Rectangle {
+        id: copyToast
+        objectName: "copyToast"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: footer.top
+        anchors.bottomMargin: Style.space(12)
+        width: Math.min(parent.width, toastText.implicitWidth + Style.space(28))
+        height: toastText.implicitHeight + Style.space(18)
+        radius: Style.space(8)
+        color: Color.popups.background
+        border.color: Color.accent
+        opacity: root.copyFeedback ? 1 : 0
+        visible: opacity > 0
+        z: 1
+        Behavior on opacity { NumberAnimation { duration: 150 } }
+        Text {
+            id: toastText
+            anchors.centerIn: parent
+            // Keep the last message while the toast fades out.
+            property string message: ""
+            Connections {
+                target: root
+                function onCopyFeedbackChanged() {
+                    if (root.copyFeedback) toastText.message = root.copyFeedback
+                }
+            }
+            text: message
+            textFormat: Text.PlainText
+            font.family: root.family
+            font.pixelSize: Style.font.bodySmall
+            color: root.foreground
         }
     }
 }

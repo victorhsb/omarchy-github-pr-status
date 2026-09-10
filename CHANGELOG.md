@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.0 — 2026-09-10
+
+- Press C on the selected PR to copy its full URL, or Shift+C to copy an
+  `owner/repo#123` reference for agent conversations, reviews, and sharing.
+- Confirm clipboard actions with a small fading “URL copied” or “Reference
+  copied” toast. Copy failures show “Could not copy”; the panel stays open.
+- Show only the newest attempt of each workflow job, so superseded CI failures
+  no longer block merge readiness. Keep jobs from different workflows and apps
+  separate, with conservative handling when workflow metadata is unavailable.
+- Add clipboard and keyboard regression coverage and refresh dark/light previews.
+
+Copying requires `wl-copy` from `wl-clipboard` on the shell PATH. Existing Git
+installations should pull and rerun `python3 install.py --enable`. If the new
+shortcuts do not appear, run `omarchy restart shell` to reload cached QML;
+this briefly reloads the bar and desktop overlays.
+
 ## 1.1.2 — 2026-09-09
 
 - Fix missing-icon placeholders in ready-to-merge notifications by bundling a

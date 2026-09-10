@@ -124,6 +124,62 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(row["inline"], 6)
         self.assertIn("after:$cursor", api.calls[0][0])
 
+    def test_check_retries_replace_old_results_across_pages_in_any_order(self):
+        def attempt(run_id, state):
+            return dict(check("unit-test-result", state), id=str(run_id), databaseId=run_id,
+                        checkSuite={"id": "suite-" + str(run_id), "app": {"id": "actions"},
+                                    "workflowRun": {"workflow": {"id": "ci"}}})
+
+        for state, expected in (("SUCCESS", "success"), ("FAILURE", "failed"),
+                                ("QUEUED", "running"), ("SKIPPED", "skipped")):
+            for reverse in (False, True):
+                with self.subTest(state=state, reverse=reverse):
+                    old = attempt(10, "FAILURE" if state == "SUCCESS" else "SUCCESS")
+                    new = attempt(20, state)
+                    if state == "QUEUED":
+                        new.update(status="QUEUED", conclusion=None)
+                    first, second = (new, old) if reverse else (old, new)
+                    source = pr()
+                    source["commits"]["nodes"][0]["commit"]["statusCheckRollup"]["contexts"] = connection([first], "next")
+                    api = ScriptedAPI({"repository": {"object": {"statusCheckRollup": {
+                        "contexts": connection([second])}}}})
+                    row = h.normalize(api, source)
+                    self.assertEqual(row["checks"], [{"name": "unit-test-result", "status": state, "bucket": expected}])
+                    self.assertEqual(sum(row["counts"].values()), 1)
+                    self.assertEqual(row["counts"][expected], 1)
+
+    def test_same_named_checks_keep_distinct_workflows_apps_and_unknown_origins(self):
+        original = dict(check(state="FAILURE"), databaseId=10,
+                        checkSuite={"id": "suite", "app": {"id": "actions"},
+                                    "workflowRun": {"workflow": {"id": "ci"}}})
+        for difference in ("workflow", "app", "missing", "status"):
+            with self.subTest(difference=difference):
+                other = copy.deepcopy(original)
+                other.update(id="other", databaseId=20, conclusion="SUCCESS")
+                if difference == "workflow":
+                    other["checkSuite"]["workflowRun"]["workflow"]["id"] = "deploy"
+                elif difference == "app":
+                    other["checkSuite"]["app"]["id"] = "another-app"
+                elif difference == "missing":
+                    other.pop("checkSuite")
+                else:
+                    other = check(kind="StatusContext")
+                source = pr()
+                source["commits"]["nodes"][0]["commit"]["statusCheckRollup"]["contexts"] = connection([original, other])
+                row = h.normalize(ScriptedAPI(), source)
+                self.assertEqual(len(row["checks"]), 2)
+                self.assertEqual(row["counts"]["failed"], 1)
+
+    def test_successful_refresh_replaces_previous_check_list(self):
+        source = pr()
+        old = h.normalize(ScriptedAPI(), source)
+        old["checks"] = [{"name": "removed", "status": "FAILURE", "bucket": "failed"}]
+        old["counts"].update(success=0, failed=1)
+        api = ScriptedAPI(search_page([source]), {"nodes": [source]})
+        result = h.snapshot(api, "alice", {"prs": [old], "lastSuccessAt": 12})
+        self.assertEqual(result["prs"][0]["counts"]["failed"], 0)
+        self.assertEqual(result["prs"][0]["checks"][0]["name"], "unit")
+
     def test_review_states(self):
         for decision, expected in {"APPROVED": "Approved", "CHANGES_REQUESTED": "Changes requested", "REVIEW_REQUIRED": "Review required", None: "No review decision", "NEW": "Unknown"}.items():
             source = pr()
