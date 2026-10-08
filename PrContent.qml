@@ -135,6 +135,21 @@ Item {
         currentIndex: 0
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar {}
+        WheelHandler {
+            target: null
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: function(event) {
+                // Boost smooth scrolling too: some mice send pixel deltas.
+                // Use a larger wheel step while keeping small deltas proportional.
+                let distance = event.pixelDelta.y !== 0
+                    ? event.pixelDelta.y * (13 / 6)
+                    : event.angleDelta.y / 120 * Style.space(260)
+                let bottom = list.originY + Math.max(0, list.contentHeight - list.height)
+                list.cancelFlick()
+                list.contentY = Math.max(list.originY, Math.min(bottom, list.contentY - distance))
+                event.accepted = true
+            }
+        }
         delegate: PrRow {
             required property var modelData
             required property int index

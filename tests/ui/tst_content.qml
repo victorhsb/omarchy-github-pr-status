@@ -186,6 +186,44 @@ Item {
             content.activate()
             compare(opened.signalArguments[2][0], "https://github.com/example/omarchy-tools/pull/39")
         }
+        function test_mouse_wheel_sensitivity_and_bounds() {
+            let data = example()
+            for (let id = 50; id < 70; id++) {
+                data.prs.push(row(String(id), "Mouse wheel scrolling fixture", false, "Approved", [], 0, 0))
+            }
+            content.snapshot = data
+            wait(100)
+            let list = findChild(content, "prList")
+            let top = list.originY
+            let title = findChild(list.itemAtIndex(0), "prTitle")
+            mouseWheel(title, 20, title.height / 2, 0, -120, Qt.NoButton)
+            fuzzyCompare(list.contentY, top + 260, 1)
+            compare(list.currentIndex, 0)
+            compare(opened.count, 0)
+            mouseWheel(list, 20, 20, 0, -30, Qt.NoButton)
+            fuzzyCompare(list.contentY, top + 325, 1)
+            mouseWheel(list, 20, 20, 0, 120, Qt.NoButton)
+            fuzzyCompare(list.contentY, top + 65, 1)
+            mouseWheel(list, 20, 20, 0, 12000, Qt.NoButton)
+            fuzzyCompare(list.contentY, list.originY, 1)
+            mouseWheel(list, 20, 20, 0, -12000, Qt.NoButton)
+            wait(100)
+            fuzzyCompare(list.contentY, list.originY + list.contentHeight - list.height, 1)
+            keyClick(Qt.Key_Down)
+            compare(list.currentIndex, 1)
+            verify(list.contentY < list.originY + list.contentHeight - list.height)
+        }
+        function test_mouse_wheel_short_and_empty_lists() {
+            for (let prs of [[example().prs[0]], []]) {
+                content.snapshot = { prs: prs }
+                wait(100)
+                let list = findChild(content, "prList")
+                for (let delta of [-120, 120]) {
+                    mouseWheel(list, 20, 20, 0, delta, Qt.NoButton)
+                    fuzzyCompare(list.contentY, list.originY, 1)
+                }
+            }
+        }
         function test_copy_shortcuts_and_feedback() {
             keyClick(Qt.Key_C, Qt.ControlModifier)
             keyClick(Qt.Key_C, Qt.AltModifier)

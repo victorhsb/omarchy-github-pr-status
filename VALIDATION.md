@@ -1,5 +1,27 @@
 # Validation
 
+## Mouse wheel sensitivity (2026-10-08)
+
+- Mouse wheel notches now scroll 260 theme-scaled pixels. Smaller angle deltas
+  remain proportional; smooth pixel events scroll at 13/6 their incoming distance,
+  including mice that send pixel deltas. Keyboard navigation is unchanged.
+- All 62 Python tests, plugin validation, QML lint, and 18 Qt Quick results pass.
+  New wheel-event regressions cover scrolling over a PR title, small deltas,
+  both directions, list boundaries, short/empty lists, and keyboard navigation
+  after scrolling. The isolated clipboard process checks also pass.
+- A temporary native Qt event harness also verifies full wheel notches, mouse
+  events with both pixel/angle deltas, pixel-only events, and reverse smooth
+  scrolling against the production content.
+- Dark/light previews were regenerated and inspected; both match the existing
+  previews. The installed content was backed up and updated separately, its
+  bytes verified against the checkout, and the shell restarted to ensure fresh
+  QML. The running panel was opened and visually inspected. The user confirmed
+  the stronger setting worked, then requested reductions to 320 and finally 260
+  for their mouse's physical detents. The final setting was installed separately.
+  Final physical mouse-wheel feel remains for user acceptance.
+- No forced GitHub fetch was requested. Temporary desktop captures were removed
+  and no private PR metadata was retained in the repository.
+
 ## Release 1.2.0 (2026-09-10)
 
 - Release includes PR copying with toast feedback and superseded CI-attempt
